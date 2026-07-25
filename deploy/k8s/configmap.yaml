@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-config
+  labels:
+    app: analytics-platform
+data:
+  KAFKA_BROKERS: "kafka:9092"
+  KAFKA_TOPIC: "analytics-events"
+  KAFKA_CONSUMER_GROUP: "analytics-platform"
+  KAFKA_DLQ_TOPIC: "analytics-events-dlq"
+  CLICKHOUSE_DSN: "tcp://clickhouse:9000/analytics?username=default&password="
+  REDIS_ADDR: "redis:6379"
+  REDIS_CACHE_TTL: "300"
+  API_PORT: "8080"
+  API_READ_TIMEOUT: "30s"
+  API_WRITE_TIMEOUT: "30s"
+  WORKER_BATCH_SIZE: "1000"
+  WORKER_FLUSH_INTERVAL: "5s"
+  METRICS_PORT: "9090"
+  LOG_LEVEL: "info"
