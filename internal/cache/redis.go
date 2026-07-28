@@ -13,9 +13,9 @@ import (
 )
 
 type RedisCache struct {
-	client   *redis.Client
-	logger   *zap.Logger
-	ttl      time.Duration
+	client *redis.Client
+	logger *zap.Logger
+	ttl    time.Duration
 }
 
 func NewRedisCache(cfg config.RedisConfig, logger *zap.Logger) (*RedisCache, error) {

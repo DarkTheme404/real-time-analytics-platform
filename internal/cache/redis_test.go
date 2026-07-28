@@ -10,46 +10,35 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestNewRedisCache(t *testing.T) {
+func newTestCache(t *testing.T) *RedisCache {
+	t.Helper()
 	logger, _ := zap.NewDevelopment()
-
 	cfg := RedisConfig{
 		Addr:     "localhost:6379",
 		Password: "",
 		DB:       0,
 		CacheTTL: 5 * time.Minute,
 	}
-
 	cache, err := NewRedisCache(cfg, logger)
 	if err != nil {
 		t.Skip("Redis not available for integration test")
 	}
-	defer cache.Close()
+	t.Cleanup(func() { cache.Close() })
+	return cache
+}
 
+func TestNewRedisCache(t *testing.T) {
+	cache := newTestCache(t)
 	assert.NotNil(t, cache)
 }
 
 func TestRedisCache_SetAndGet(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		CacheTTL: 5 * time.Minute,
-	}
-
-	cache, err := NewRedisCache(cfg, logger)
-	if err != nil {
-		t.Skip("Redis not available for integration test")
-	}
-	defer cache.Close()
-
+	cache := newTestCache(t)
 	ctx := context.Background()
 	key := "test-key"
 	value := map[string]string{"name": "test", "value": "123"}
 
-	err = cache.Set(ctx, key, value)
+	err := cache.Set(ctx, key, value)
 	require.NoError(t, err)
 
 	var result map[string]string
@@ -59,47 +48,19 @@ func TestRedisCache_SetAndGet(t *testing.T) {
 }
 
 func TestRedisCache_GetNonExistent(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		CacheTTL: 5 * time.Minute,
-	}
-
-	cache, err := NewRedisCache(cfg, logger)
-	if err != nil {
-		t.Skip("Redis not available for integration test")
-	}
-	defer cache.Close()
-
+	cache := newTestCache(t)
 	ctx := context.Background()
 	var result map[string]string
-	err = cache.Get(ctx, "non-existent-key", &result)
+	err := cache.Get(ctx, "non-existent-key", &result)
 	assert.NoError(t, err)
 	assert.Nil(t, result)
 }
 
 func TestRedisCache_Delete(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		CacheTTL: 5 * time.Minute,
-	}
-
-	cache, err := NewRedisCache(cfg, logger)
-	if err != nil {
-		t.Skip("Redis not available for integration test")
-	}
-	defer cache.Close()
-
+	cache := newTestCache(t)
 	ctx := context.Background()
 	key := "delete-test"
-	err = cache.Set(ctx, key, "value")
+	err := cache.Set(ctx, key, "value")
 	require.NoError(t, err)
 
 	err = cache.Delete(ctx, key)
@@ -111,21 +72,7 @@ func TestRedisCache_Delete(t *testing.T) {
 }
 
 func TestRedisCache_Exists(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		CacheTTL: 5 * time.Minute,
-	}
-
-	cache, err := NewRedisCache(cfg, logger)
-	if err != nil {
-		t.Skip("Redis not available for integration test")
-	}
-	defer cache.Close()
-
+	cache := newTestCache(t)
 	ctx := context.Background()
 	key := "exists-test"
 
@@ -142,21 +89,7 @@ func TestRedisCache_Exists(t *testing.T) {
 }
 
 func TestRedisCache_SetNX(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		CacheTTL: 5 * time.Minute,
-	}
-
-	cache, err := NewRedisCache(cfg, logger)
-	if err != nil {
-		t.Skip("Redis not available for integration test")
-	}
-	defer cache.Close()
-
+	cache := newTestCache(t)
 	ctx := context.Background()
 	key := "setnx-test"
 
@@ -175,21 +108,7 @@ func TestRedisCache_SetNX(t *testing.T) {
 }
 
 func TestRedisCache_Incr(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		CacheTTL: 5 * time.Minute,
-	}
-
-	cache, err := NewRedisCache(cfg, logger)
-	if err != nil {
-		t.Skip("Redis not available for integration test")
-	}
-	defer cache.Close()
-
+	cache := newTestCache(t)
 	ctx := context.Background()
 	key := "incr-test"
 
@@ -203,64 +122,23 @@ func TestRedisCache_Incr(t *testing.T) {
 }
 
 func TestRedisCache_Ping(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		CacheTTL: 5 * time.Minute,
-	}
-
-	cache, err := NewRedisCache(cfg, logger)
-	if err != nil {
-		t.Skip("Redis not available for integration test")
-	}
-	defer cache.Close()
-
-	err = cache.Ping(context.Background())
+	cache := newTestCache(t)
+	err := cache.Ping(context.Background())
 	assert.NoError(t, err)
 }
 
 func TestRedisCache_Close(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		CacheTTL: 5 * time.Minute,
-	}
-
-	cache, err := NewRedisCache(cfg, logger)
-	if err != nil {
-		t.Skip("Redis not available for integration test")
-	}
-
-	err = cache.Close()
+	cache := newTestCache(t)
+	err := cache.Close()
 	assert.NoError(t, err)
 }
 
 func TestRedisCache_FlushAll(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		CacheTTL: 5 * time.Minute,
-	}
-
-	cache, err := NewRedisCache(cfg, logger)
-	if err != nil {
-		t.Skip("Redis not available for integration test")
-	}
-	defer cache.Close()
-
+	cache := newTestCache(t)
 	ctx := context.Background()
 	_ = cache.Set(ctx, "flush-test", "value")
 
-	err = cache.FlushAll(ctx)
+	err := cache.FlushAll(ctx)
 	assert.NoError(t, err)
 }
 

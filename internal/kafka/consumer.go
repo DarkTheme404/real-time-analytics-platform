@@ -33,6 +33,7 @@ type Processor interface {
 func NewConsumer(cfg config.KafkaConfig, processor Processor, logger *zap.Logger) (*Consumer, error) {
 	saramaCfg := sarama.NewConfig()
 	saramaCfg.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+	// Начинаем с самого старого оффсета, чтобы не терять события при старте
 	saramaCfg.Consumer.Offsets.Initial = sarama.OffsetOldest
 	saramaCfg.Consumer.Return.Errors = true
 	saramaCfg.Consumer.Offsets.AutoCommit.Enable = true
@@ -97,6 +98,8 @@ func (h *ConsumerHandler) Cleanup(_ sarama.ConsumerGroupSession) error {
 	return nil
 }
 
+// ConsumeClaim - основной цикл обработки сообщений из partition.
+// MarkMessage вызывается только после успешной обработки (at-least-once).
 func (h *ConsumerHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {

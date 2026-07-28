@@ -66,6 +66,8 @@ func (p *Producer) SendMessage(key, value []byte, headers map[string]string) err
 	return nil
 }
 
+// SendToDLQ - отправка в Dead Letter Queue с метаданными о причине.
+// DLQ позволяет исследовать проблемные сообщения и восстановить их обработку.
 func (p *Producer) SendToDLQ(key, value []byte, reason string) error {
 	msg := &sarama.ProducerMessage{
 		Topic: p.dlqTopic,

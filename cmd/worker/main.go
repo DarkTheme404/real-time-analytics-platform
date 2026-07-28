@@ -31,11 +31,11 @@ type AggregationEvent struct {
 }
 
 type AggregationWorker struct {
-	storage    *storage.ClickHouseStorage
-	cache      *cache.RedisCache
-	producer   *kafka.Producer
-	logger     *zap.Logger
-	batchSize  int
+	storage       *storage.ClickHouseStorage
+	cache         *cache.RedisCache
+	producer      *kafka.Producer
+	logger        *zap.Logger
+	batchSize     int
 	flushInterval time.Duration
 }
 
@@ -154,9 +154,9 @@ func (aw *AggregationWorker) ProcessMessage(ctx context.Context, msg *sarama.Con
 	}
 
 	if err := aw.producer.SendMessage(msg.Key, value, map[string]string{
-		"event_type":   event.EventType,
-		"source":       event.Source,
-		"aggregated":   "true",
+		"event_type": event.EventType,
+		"source":     event.Source,
+		"aggregated": "true",
 	}); err != nil {
 		aw.logger.Error("Failed to send aggregated event", zap.Error(err))
 		return err
@@ -170,6 +170,8 @@ func (aw *AggregationWorker) ProcessMessage(ctx context.Context, msg *sarama.Con
 	return nil
 }
 
+// computeAggregation - бизнес-логика обогащения события.
+// Категоризирует страницы и бакетизирует суммы для дальнейшей аналитики.
 func (aw *AggregationWorker) computeAggregation(event AggregationEvent) map[string]interface{} {
 	aggregation := map[string]interface{}{
 		"processed_at": time.Now().UTC(),
@@ -218,6 +220,8 @@ func bucketAmount(amount float64) string {
 	}
 }
 
+// runAggregationLoop - периодический flush кэша агрегаций.
+// Каждые flushInterval секунд забирает накопленные агрегации из Redis и чистит ключи.
 func (aw *AggregationWorker) runAggregationLoop(ctx context.Context) {
 	ticker := time.NewTicker(aw.flushInterval)
 	defer ticker.Stop()
@@ -261,7 +265,7 @@ func initLogger(level string) *zap.Logger {
 		lvl = zapcore.InfoLevel
 	}
 
-	config := zap.Config{
+	cfg := zap.Config{
 		Level:            zap.NewAtomicLevelAt(lvl),
 		Development:      false,
 		Encoding:         "json",
@@ -270,7 +274,7 @@ func initLogger(level string) *zap.Logger {
 		ErrorOutputPaths: []string{"stderr"},
 	}
 
-	logger, err := config.Build()
+	logger, err := cfg.Build()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
 	}

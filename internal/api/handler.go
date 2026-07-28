@@ -64,6 +64,8 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 	})
 }
 
+// ReadinessCheck проверяет доступность ClickHouse и Redis.
+// Если хотя бы один dependency недоступен - возвращает 503.
 func (h *Handler) ReadinessCheck(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
@@ -188,7 +190,8 @@ func (h *Handler) QueryEvents(c *gin.Context) {
 		return
 	}
 
-	cacheKey := fmt.Sprintf("events:%s:%s:%s:%s:%d:%d", userID, eventType, granularity, fromStr, to.Unix(), limit)
+	// Ключ кэша включает все параметры запроса для уникальности
+	cacheKey := fmt.Sprintf("events:%s:%s:%s:%s:%s:%d", userID, eventType, granularity, fromStr, toStr, limit)
 
 	var cached []storage.Event
 	if err := h.cache.Get(c.Request.Context(), cacheKey, &cached); err == nil && cached != nil {
@@ -229,7 +232,7 @@ func (h *Handler) QueryAggregations(c *gin.Context) {
 		return
 	}
 
-	cacheKey := fmt.Sprintf("aggregations:%s:%s:%s:%s:%d", eventType, granularity, fromStr, toStr, 0)
+	cacheKey := fmt.Sprintf("aggregations:%s:%s:%s:%s", eventType, granularity, fromStr, toStr)
 
 	var cached []map[string]interface{}
 	if err := h.cache.Get(c.Request.Context(), cacheKey, &cached); err == nil && cached != nil {
@@ -254,6 +257,8 @@ func (h *Handler) QueryAggregations(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": results, "count": len(results)})
 }
 
+// GetAnalyticsSummary - агрегация за последние 24 часа.
+// Суммирует total_events и unique_users по всем time buckets.
 func (h *Handler) GetAnalyticsSummary(c *gin.Context) {
 	eventType := c.Query("event_type")
 	from := time.Now().Add(-24 * time.Hour)
@@ -282,11 +287,11 @@ func (h *Handler) GetAnalyticsSummary(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"summary": gin.H{
-			"total_events":     totalEvents,
-			"total_users":      totalUniqueUsers,
-			"period_hours":     24,
-			"event_type":       eventType,
-			"data_points":      len(results),
+			"total_events": totalEvents,
+			"total_users":  totalUniqueUsers,
+			"period_hours": 24,
+			"event_type":   eventType,
+			"data_points":  len(results),
 		},
 		"time_range": gin.H{
 			"from": from,
@@ -323,13 +328,16 @@ func (h *Handler) metricsMiddleware() gin.HandlerFunc {
 		c.Next()
 
 		latency := time.Since(start).Seconds()
-		status := c.Writer.Status()
+		statusCode := c.Writer.Status()
 		path := c.Request.URL.Path
 
 		metrics.QueryDurationSeconds.WithLabelValues(fmt.Sprintf("%s_%s", c.Request.Method, path)).Observe(latency)
-		_ = status
 
-		metrics.EventsProcessedTotal.WithLabelValues("success").Inc()
+		if statusCode >= 500 {
+			metrics.EventsProcessedTotal.WithLabelValues("error").Inc()
+		} else {
+			metrics.EventsProcessedTotal.WithLabelValues("success").Inc()
+		}
 	}
 }
 

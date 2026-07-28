@@ -97,7 +97,7 @@ func initLogger(level string) *zap.Logger {
 		lvl = zapcore.InfoLevel
 	}
 
-	config := zap.Config{
+	cfg := zap.Config{
 		Level:            zap.NewAtomicLevelAt(lvl),
 		Development:      false,
 		Encoding:         "json",
@@ -106,7 +106,7 @@ func initLogger(level string) *zap.Logger {
 		ErrorOutputPaths: []string{"stderr"},
 	}
 
-	logger, err := config.Build()
+	logger, err := cfg.Build()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
 	}

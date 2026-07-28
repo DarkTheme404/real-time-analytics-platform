@@ -63,6 +63,8 @@ func NewClickHouseStorage(cfg config.ClickHouseConfig, logger *zap.Logger) (*Cli
 
 func (s *ClickHouseStorage) migrate() error {
 	migrations := []string{
+		// Основная таблица событий. TTL 90 дней - старые данные автоматически удаляются.
+		// Партиционирование по месяцам для быстрых запросов за период.
 		`CREATE TABLE IF NOT EXISTS analytics_events (
 			id String,
 			event_type String,
@@ -76,6 +78,7 @@ func (s *ClickHouseStorage) migrate() error {
 		ORDER BY (event_type, user_id, timestamp)
 		TTL timestamp + INTERVAL 90 DAY`,
 
+		// Aggregations table - заполняется через materialized view
 		`CREATE TABLE IF NOT EXISTS analytics_aggregations (
 			event_type String,
 			source String,
@@ -88,6 +91,7 @@ func (s *ClickHouseStorage) migrate() error {
 		PARTITION BY toYYYYMM(time_bucket)
 		ORDER BY (event_type, source, time_bucket)`,
 
+		// MV автоматически агрегирует события по часам при вставке
 		`CREATE MATERIALIZED VIEW IF NOT EXISTS analytics_events_mv
 		TO analytics_aggregations
 		AS SELECT
@@ -101,6 +105,7 @@ func (s *ClickHouseStorage) migrate() error {
 		FROM analytics_events
 		GROUP BY event_type, source, time_bucket`,
 
+		// Таблицы для агрегированных статистик с use AggregateFunction для精确 uniq
 		`CREATE TABLE IF NOT EXISTS analytics_hourly_stats (
 			hour DateTime,
 			event_type String,
@@ -233,6 +238,8 @@ func (s *ClickHouseStorage) QueryEvents(ctx context.Context, userID, eventType s
 	return events, rows.Err()
 }
 
+// QueryAggregations - динамическая агрегация по time bucket.
+// granularity определяет размер окна: minute/hour/day.
 func (s *ClickHouseStorage) QueryAggregations(ctx context.Context, eventType string, from, to time.Time, granularity string) ([]map[string]interface{}, error) {
 	var timeFunc string
 	switch granularity {
@@ -282,11 +289,11 @@ func (s *ClickHouseStorage) QueryAggregations(ctx context.Context, eventType str
 	var results []map[string]interface{}
 	for rows.Next() {
 		var (
-			timeBucket   time.Time
-			evtType      string
-			totalEvents  uint64
-			uniqueUsers  uint64
-			avgDataSize  float64
+			timeBucket  time.Time
+			evtType     string
+			totalEvents uint64
+			uniqueUsers uint64
+			avgDataSize float64
 		)
 		if err := rows.Scan(&timeBucket, &evtType, &totalEvents, &uniqueUsers, &avgDataSize); err != nil {
 			return nil, fmt.Errorf("failed to scan aggregation: %w", err)

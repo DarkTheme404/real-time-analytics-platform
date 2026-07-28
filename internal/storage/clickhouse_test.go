@@ -10,9 +10,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestNewClickHouseStorage(t *testing.T) {
+func newTestStorage(t *testing.T) *ClickHouseStorage {
+	t.Helper()
 	logger, _ := zap.NewDevelopment()
-
 	cfg := ClickHouseConfig{
 		DSN:             "tcp://localhost:9000/analytics?username=default&password=",
 		BatchSize:       1000,
@@ -21,33 +21,21 @@ func TestNewClickHouseStorage(t *testing.T) {
 		MaxIdleConns:    5,
 		ConnMaxLifetime: 5 * time.Minute,
 	}
-
 	storage, err := NewClickHouseStorage(cfg, logger)
 	if err != nil {
 		t.Skip("ClickHouse not available for integration test")
 	}
-	defer storage.Close()
+	t.Cleanup(func() { storage.Close() })
+	return storage
+}
 
+func TestNewClickHouseStorage(t *testing.T) {
+	storage := newTestStorage(t)
 	assert.NotNil(t, storage)
 }
 
 func TestClickHouseStorage_BatchInsert(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := ClickHouseConfig{
-		DSN:             "tcp://localhost:9000/analytics?username=default&password=",
-		BatchSize:       1000,
-		FlushInterval:   5 * time.Second,
-		MaxOpenConns:    10,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: 5 * time.Minute,
-	}
-
-	storage, err := NewClickHouseStorage(cfg, logger)
-	if err != nil {
-		t.Skip("ClickHouse not available for integration test")
-	}
-	defer storage.Close()
+	storage := newTestStorage(t)
 
 	events := []Event{
 		{
@@ -68,118 +56,39 @@ func TestClickHouseStorage_BatchInsert(t *testing.T) {
 		},
 	}
 
-	err = storage.BatchInsert(context.Background(), events)
+	err := storage.BatchInsert(context.Background(), events)
 	assert.NoError(t, err)
 }
 
 func TestClickHouseStorage_BatchInsertEmpty(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := ClickHouseConfig{
-		DSN:             "tcp://localhost:9000/analytics?username=default&password=",
-		BatchSize:       1000,
-		FlushInterval:   5 * time.Second,
-		MaxOpenConns:    10,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: 5 * time.Minute,
-	}
-
-	storage, err := NewClickHouseStorage(cfg, logger)
-	if err != nil {
-		t.Skip("ClickHouse not available for integration test")
-	}
-	defer storage.Close()
-
-	err = storage.BatchInsert(context.Background(), []Event{})
+	storage := newTestStorage(t)
+	err := storage.BatchInsert(context.Background(), []Event{})
 	assert.NoError(t, err)
 }
 
 func TestClickHouseStorage_QueryEvents(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := ClickHouseConfig{
-		DSN:             "tcp://localhost:9000/analytics?username=default&password=",
-		BatchSize:       1000,
-		FlushInterval:   5 * time.Second,
-		MaxOpenConns:    10,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: 5 * time.Minute,
-	}
-
-	storage, err := NewClickHouseStorage(cfg, logger)
-	if err != nil {
-		t.Skip("ClickHouse not available for integration test")
-	}
-	defer storage.Close()
-
+	storage := newTestStorage(t)
 	events, err := storage.QueryEvents(context.Background(), "", "", time.Now().Add(-1*time.Hour), time.Now(), 10)
 	assert.NoError(t, err)
 	assert.NotNil(t, events)
 }
 
 func TestClickHouseStorage_QueryAggregations(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := ClickHouseConfig{
-		DSN:             "tcp://localhost:9000/analytics?username=default&password=",
-		BatchSize:       1000,
-		FlushInterval:   5 * time.Second,
-		MaxOpenConns:    10,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: 5 * time.Minute,
-	}
-
-	storage, err := NewClickHouseStorage(cfg, logger)
-	if err != nil {
-		t.Skip("ClickHouse not available for integration test")
-	}
-	defer storage.Close()
-
+	storage := newTestStorage(t)
 	results, err := storage.QueryAggregations(context.Background(), "", time.Now().Add(-24*time.Hour), time.Now(), "hour")
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
 }
 
 func TestClickHouseStorage_Ping(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := ClickHouseConfig{
-		DSN:             "tcp://localhost:9000/analytics?username=default&password=",
-		BatchSize:       1000,
-		FlushInterval:   5 * time.Second,
-		MaxOpenConns:    10,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: 5 * time.Minute,
-	}
-
-	storage, err := NewClickHouseStorage(cfg, logger)
-	if err != nil {
-		t.Skip("ClickHouse not available for integration test")
-	}
-	defer storage.Close()
-
-	err = storage.Ping(context.Background())
+	storage := newTestStorage(t)
+	err := storage.Ping(context.Background())
 	assert.NoError(t, err)
 }
 
 func TestClickHouseStorage_Close(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	cfg := ClickHouseConfig{
-		DSN:             "tcp://localhost:9000/analytics?username=default&password=",
-		BatchSize:       1000,
-		FlushInterval:   5 * time.Second,
-		MaxOpenConns:    10,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: 5 * time.Minute,
-	}
-
-	storage, err := NewClickHouseStorage(cfg, logger)
-	if err != nil {
-		t.Skip("ClickHouse not available for integration test")
-	}
-
-	err = storage.Close()
+	storage := newTestStorage(t)
+	err := storage.Close()
 	assert.NoError(t, err)
 }
 

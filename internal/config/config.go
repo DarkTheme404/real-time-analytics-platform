@@ -9,13 +9,13 @@ import (
 )
 
 type Config struct {
-	Kafka    KafkaConfig
+	Kafka      KafkaConfig
 	ClickHouse ClickHouseConfig
-	Redis    RedisConfig
-	API      APIConfig
-	Worker   WorkerConfig
-	Metrics  MetricsConfig
-	Log      LogConfig
+	Redis      RedisConfig
+	API        APIConfig
+	Worker     WorkerConfig
+	Metrics    MetricsConfig
+	Log        LogConfig
 }
 
 type KafkaConfig struct {
@@ -160,6 +160,7 @@ func getEnvDuration(key string, defaultVal time.Duration) time.Duration {
 	return defaultVal
 }
 
+// getEnvSlice парсит CSV из env в slice, пропуская пустые элементы
 func getEnvSlice(key string, defaultVal []string) []string {
 	if val := os.Getenv(key); val != "" {
 		parts := strings.Split(val, ",")
